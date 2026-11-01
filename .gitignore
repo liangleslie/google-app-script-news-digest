@@ -1,0 +1,21 @@
+# clasp & Google credentials (contains scriptId and local machine paths)
+.clasp.json
+.clasprc.json
+
+# Dependencies & runtime
+node_modules/
+npm-debug.log*
+.npm/
+
+# Environment & secrets
+.env
+.env.*
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+

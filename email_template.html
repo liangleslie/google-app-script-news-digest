@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>News Digest</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#0f172a;padding:20px 24px;color:#ffffff;">
+              <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px;">
+                Curated News Digest &bull; <?= dateStr ?>
+              </div>
+              <div style="font-size:20px;font-weight:700;line-height:1.3;">
+                <?= topicBoxes.length ?> Topic<?= topicBoxes.length === 1 ? '' : 's' ?> &bull; <?= totalCount ?> Shortlisted Article<?= totalCount === 1 ? '' : 's' ?> (Score &gt; <?= threshold ?>/10)
+              </div>
+            </td>
+          </tr>
+
+          <!-- Topic Boxes: Each box represents one synthesised discussion/topic with links to all constituent articles -->
+          <? for (var b = 0; b < topicBoxes.length; b++) { var box = topicBoxes[b]; ?>
+          <tr>
+            <td style="padding:14px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d1d5db;border-radius:8px;padding:16px;background-color:#fafafa;">
+                <tr>
+                  <td>
+                    <!-- Topic Box Badges -->
+                    <div style="margin-bottom:8px;">
+                      <span style="display:inline-block;background-color:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:6px;">
+                        <?= box.matchedTopics ?>
+                      </span>
+                      <span style="display:inline-block;background-color:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;margin-right:6px;">
+                        Relevance: <?= box.maxScore ?>/10
+                      </span>
+                      <span style="display:inline-block;background-color:#e5e7eb;color:#374151;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;">
+                        <?= box.articles.length ?> Article<?= box.articles.length === 1 ? '' : 's' ?>
+                      </span>
+                    </div>
+
+                    <!-- Topic Headline (Discussion Tag) -->
+                    <div style="font-size:17px;font-weight:700;line-height:1.35;color:#0f172a;margin-bottom:8px;">
+                      <?= box.topicTag ?>
+                    </div>
+
+                    <!-- Synthesised Topic Summary across all related articles -->
+                    <div style="font-size:14px;line-height:1.6;color:#374151;margin-bottom:10px;">
+                      <?= box.topicSummary ?>
+                    </div>
+
+                    <? if (box.reason) { ?>
+                    <div style="font-size:12px;line-height:1.4;color:#4b5563;background-color:#f3f4f6;padding:6px 10px;border-left:3px solid #3b82f6;border-radius:2px;margin-bottom:12px;">
+                      <strong>Why it matched:</strong> <?= box.reason ?>
+                    </div>
+                    <? } ?>
+
+                    <!-- Related Article Links within this Topic Box -->
+                    <div style="border-top:1px solid #e5e7eb;padding-top:10px;margin-top:4px;">
+                      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin-bottom:6px;">
+                        Related Coverage (<?= box.articles.length ?>)
+                      </div>
+                      <? for (var i = 0; i < box.articles.length; i++) { var art = box.articles[i]; ?>
+                      <div style="font-size:13px;line-height:1.45;margin-bottom:6px;">
+                        <span style="display:inline-block;background-color:#1e293b;color:#ffffff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;margin-right:6px;vertical-align:middle;">
+                          <?= art.source ?>
+                        </span>
+                        <? if (art.url) { ?>
+                        <a href="<?= art.url ?>" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;font-weight:500;">
+                          <?= art.title ?>
+                        </a>
+                        <? } else { ?>
+                        <span style="color:#111827;font-weight:500;"><?= art.title ?></span>
+                        <? } ?>
+                        <? if (art.publishedAt) { ?>
+                        <span style="font-size:11px;color:#9ca3af;margin-left:4px;">
+                          (<?= art.publishedAt ?>)
+                        </span>
+                        <? } ?>
+                      </div>
+                      <? } ?>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <? } ?>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:18px 24px;border-top:1px solid #e5e7eb;background-color:#f9fafb;font-size:12px;color:#6b7280;text-align:center;">
+              Generated automatically by Google Sheets News Scraper &bull; Powered by Gemini
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
