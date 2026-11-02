@@ -16,6 +16,7 @@ function onOpen() {
     .addItem('Summarise & Score Only', 'runSummarizeAndScoreOnly')
     .addItem('Send Pending Digest & Archive', 'runSendDigestOnly')
     .addItem('Archive Processed Articles Now', 'runArchiveOnly')
+    .addItem('Prune Archived Articles (>7d)', 'runPruneArchivedOnly')
     .addToUi();
 }
 
@@ -115,6 +116,25 @@ function runNewsPipeline(nowOpt) {
       console.log('Weekend run: skipping email digest and keeping articles in "' + SHEET_NAMES.ARTICLES + '" for Monday digest.');
     }
 
+    // Step 1f: Automatically prune Archived Articles older than ARCHIVE_RETENTION_DAYS (default 7 days)
+    const prunedCount = pruneArchivedArticles(
+      ctx.archivedSheet,
+      ctx.colMap,
+      ctx.config.ARCHIVE_RETENTION_DAYS,
+      runDate
+    );
+    if (prunedCount > 0) {
+      console.log(
+        'Pruned ' +
+          prunedCount +
+          ' expired article(s) older than ' +
+          ctx.config.ARCHIVE_RETENTION_DAYS +
+          ' days from "' +
+          SHEET_NAMES.ARCHIVED_ARTICLES +
+          '".'
+      );
+    }
+
     if (ctx.deadlineTripped) {
       scheduleContinuationTrigger_();
     }
@@ -171,6 +191,21 @@ function runArchiveOnly() {
   }
   console.warn('Cannot archive yet: some rows in Articles are still unsummarised, unscored, or PENDING email.');
   return 0;
+}
+
+/**
+ * Menu helper: prunes rows in `Archived Articles` older than `ARCHIVE_RETENTION_DAYS` (default 7 days).
+ */
+function runPruneArchivedOnly() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  setupSheets(ss);
+  const ctx = buildPipelineContext_(ss, Date.now() + DEADLINE_MS, true);
+  return pruneArchivedArticles(
+    ctx.archivedSheet,
+    ctx.colMap,
+    ctx.config.ARCHIVE_RETENTION_DAYS,
+    new Date()
+  );
 }
 
 /**
@@ -288,6 +323,11 @@ function readConfig(configSheet) {
     SHORTLIST_ABOVE: parseInt(raw.SHORTLIST_ABOVE || '7', 10) || 7,
     MAX_ARTICLES_PER_SITE: Math.max(1, parseInt(raw.MAX_ARTICLES_PER_SITE || '40', 10) || 40),
     MAX_ARTICLE_CHARS: Math.max(500, parseInt(raw.MAX_ARTICLE_CHARS || '12000', 10) || 12000),
+    ARCHIVE_RETENTION_DAYS: Math.max(
+      1,
+      parseInt(raw.ARCHIVE_RETENTION_DAYS || String(DEFAULT_ARCHIVE_RETENTION_DAYS), 10) ||
+        DEFAULT_ARCHIVE_RETENTION_DAYS
+    ),
     PROMPT_SUMMARIZE: raw.PROMPT_SUMMARIZE || DEFAULT_PROMPTS.PROMPT_SUMMARIZE,
     PROMPT_SCORE: raw.PROMPT_SCORE || DEFAULT_PROMPTS.PROMPT_SCORE,
     PROMPT_CLUSTER: raw.PROMPT_CLUSTER || DEFAULT_PROMPTS.PROMPT_CLUSTER,
@@ -494,6 +534,44 @@ function archiveArticles(articlesSheet, archivedSheet, colMap) {
 
   dataRange.clearContent();
   return rows.length;
+}
+
+/**
+ * Automatically prunes rows from `Archived Articles` whose `Scraped At` timestamp is older
+ * than `retentionDays` (default 7 days). Uses a single batch clear + rewrite of retained rows.
+ */
+function pruneArchivedArticles(archivedSheet, colMap, retentionDaysOpt, nowOpt) {
+  if (!archivedSheet) return 0;
+  const lastRow = archivedSheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const days = Math.max(1, Number(retentionDaysOpt) || DEFAULT_ARCHIVE_RETENTION_DAYS);
+  const nowMs = nowOpt instanceof Date ? nowOpt.getTime() : Date.now();
+  const cutoffMs = nowMs - days * 24 * 60 * 60 * 1000;
+
+  const numRows = lastRow - 1;
+  const numCols = Object.keys(colMap).length;
+  const dataRange = archivedSheet.getRange(2, 1, numRows, numCols);
+  const allRows = dataRange.getValues();
+  const scrapedIdx = colMap['Scraped At'];
+
+  const keptRows = [];
+  for (let i = 0; i < allRows.length; i++) {
+    const rawDate = allRows[i][scrapedIdx];
+    const ts = rawDate instanceof Date ? rawDate.getTime() : Date.parse(String(rawDate || ''));
+    if (isNaN(ts) || ts > cutoffMs) {
+      keptRows.push(allRows[i]);
+    }
+  }
+
+  const prunedCount = allRows.length - keptRows.length;
+  if (prunedCount > 0) {
+    dataRange.clearContent();
+    if (keptRows.length > 0) {
+      archivedSheet.getRange(2, 1, keptRows.length, numCols).setValues(keptRows);
+    }
+  }
+  return prunedCount;
 }
 
 /**

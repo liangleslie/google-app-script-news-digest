@@ -62,12 +62,13 @@ const DEFAULT_CONFIG_ROWS = [
   ['LAST_RUN_AT', '', 'ISO timestamp of last completed scrape (auto-updated; scraper only picks articles published after this time)'],
   ['GEMINI_MODEL', 'gemini-3.8-flash', 'Model ID passed to AI Studio v1beta/models/{model}:generateContent (verified via models.get)'],
   ['THINKING_LEVEL', 'low', 'Sent as thinkingConfig.thinkingLevel (leave blank to omit for non-thinking models)'],
-  ['SUMMARY_MAX_ARTICLES_PER_BATCH', '20', 'Max full-text articles per batch in Step 1c (keeps dynamic required-key schema fast and under FSM ceiling)'],
+  ['SUMMARY_MAX_ARTICLES_PER_BATCH', '20', 'Max full-text articles per batch in Step 1c; balances articles evenly across required runs (e.g. 50 with max 40 -> 2x25)'],
   ['MAX_INPUT_TOKENS_PER_CALL', 'AUTO', 'AUTO = use 80% of dynamic model inputTokenLimit from models.get; or set integer to cap'],
   ['MAX_OUTPUT_TOKENS_PER_CALL', 'AUTO', 'AUTO = use dynamic model outputTokenLimit from models.get (25% reserved for thinking); or set integer to cap'],
   ['SHORTLIST_ABOVE', '7', 'Shortlist articles with Relevance Score strictly above this integer (8-10)'],
   ['MAX_ARTICLES_PER_SITE', '40', 'Maximum new articles fetched per site scraper per run (distributed evenly across its RSS feeds)'],
   ['MAX_ARTICLE_CHARS', '12000', 'Maximum body text characters stored per article (~4k tokens)'],
+  ['ARCHIVE_RETENTION_DAYS', '7', 'Automatically prune rows in Archived Articles older than this many days'],
   ['PROMPT_SUMMARIZE', '', 'Optional override. Leave blank to use DEFAULT_PROMPTS.PROMPT_SUMMARIZE in constants.js'],
   ['PROMPT_SCORE', '', 'Optional override. Leave blank to use DEFAULT_PROMPTS.PROMPT_SCORE in constants.js'],
   ['PROMPT_CLUSTER', '', 'Optional override. Leave blank to use DEFAULT_PROMPTS.PROMPT_CLUSTER in constants.js'],
@@ -103,6 +104,7 @@ const ST_RSS_FEEDS = [
 const DEADLINE_MS = 270 * 1000; // 4.5 min soft deadline inside Apps Script's 6-min hard ceiling
 const CONTINUATION_PROP_KEY = 'CONTINUATION_TRIGGER_ID';
 const ARCHIVE_DEDUP_LOOKBACK_ROWS = 200; // Check recent Archived Articles URLs in addition to LAST_RUN_AT
+const DEFAULT_ARCHIVE_RETENTION_DAYS = 7; // Prune Archived Articles older than 7 days
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const EST_SUMMARY_OUT_TOKENS = 220; // ~80-100 word summary + JSON overhead

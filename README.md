@@ -12,9 +12,10 @@ A serverless, container-bound Google Apps Script news pipeline running on Google
 4. **Holistic Cross-Agency Clustering & Relevance Scoring (`Step 1d`)**:
    - **Cluster & Synthesise**: Groups related articles covering the same underlying event or discussion across news agencies under a shared `Discussion Tag` and generates a ~100–150 word synthesised `Discussion Summary`.
    - **Score**: Evaluates all topic clusters in a single holistic call (`1–10`) against active topics in the `Topics` tab, storing the score, matched topics, and a 2–3 sentence (`~40–60 word`) justification.
-5. **Weekday HTML Digest & Archiving (`Step 1e`)**:
+5. **Weekday HTML Digest & Archiving (`Step 1e` & `Step 1f`)**:
    - **Weekdays (Mon–Fri, `Asia/Singapore`)**: Shortlists pending topics with `Relevance Score > SHORTLIST_ABOVE` (default `> 7`, i.e. `8–10`), renders [`email_template.html`](./email_template.html) (one card box per topic with synthesised summary and links to each constituent article), sends a BCC email to active recipients, and moves all processed rows from `Articles` to `Archived Articles`.
    - **Weekends (Sat–Sun)**: Skips emailing and archiving so weekend articles accumulate in `Articles` and merge into a single combined Monday digest.
+   - **7-Day Archive Retention**: Automatically prunes rows in `Archived Articles` older than `ARCHIVE_RETENTION_DAYS` (default `7` days).
 
 ---
 
@@ -46,11 +47,12 @@ Running **News Scraper → Initialize Sheets** (or `setupSheets()` in the Apps S
    - `LAST_RUN_AT`: ISO timestamp of the last completed scrape (auto-updated).
    - `GEMINI_MODEL`: Model ID (e.g. `gemini-3.8-flash`, `gemini-2.5-flash`).
    - `THINKING_LEVEL`: `low` (or blank to omit for non-thinking models).
-   - `SUMMARY_MAX_ARTICLES_PER_BATCH`: Max full-text articles per Step 1c call (default `20`).
+   - `SUMMARY_MAX_ARTICLES_PER_BATCH`: Max full-text articles per Step 1c call (default `20`); articles are divided evenly across the minimum required runs (e.g. 50 articles at cap 40 → 2 runs of 25).
    - `MAX_INPUT_TOKENS_PER_CALL` / `MAX_OUTPUT_TOKENS_PER_CALL`: `AUTO` (uses dynamic `models.get` limits) or integer cap.
    - `SHORTLIST_ABOVE`: Minimum relevance score threshold (`7` = shortlists `8–10`).
    - `MAX_ARTICLES_PER_SITE`: Max new articles per scraper per run (default `40`, round-robin across feeds).
    - `MAX_ARTICLE_CHARS`: Max extracted characters stored per article (default `12000`).
+   - `ARCHIVE_RETENTION_DAYS`: Auto-prune rows in `Archived Articles` older than this many days (default `7`).
    - `PROMPT_SUMMARIZE` / `PROMPT_SCORE` / `PROMPT_CLUSTER`: Leave blank to use `DEFAULT_PROMPTS` in [`constants.js`](./constants.js), or enter text to override in the sheet.
 
 ---

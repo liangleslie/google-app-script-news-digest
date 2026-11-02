@@ -366,9 +366,51 @@ sandbox.runBatchWithBisect(
 );
 assert.deepStrictEqual(partialCompletedRows, [2, 3, 4, 5]);
 
+// 8b. Verify balanced batching with SUMMARY_MAX_ARTICLES_PER_BATCH (50 items @ max 40 -> [25, 25]; 90 items @ max 40 -> [30, 30, 30])
+const fiftyItems = Array.from({ length: 50 }, (_, i) => ({ id: i }));
+const balanced50 = sandbox.packBatches(fiftyItems, {
+  basePromptTokens: 100,
+  inBudget: 800000,
+  outBudget: 48000,
+  inCost: () => 500,
+  outPerItem: 220,
+  maxItems: 40,
+});
+assert.deepStrictEqual(
+  Array.from(balanced50.map(b => b.length)),
+  [25, 25]
+);
+
+const ninetyItems = Array.from({ length: 90 }, (_, i) => ({ id: i }));
+const balanced90 = sandbox.packBatches(ninetyItems, {
+  basePromptTokens: 100,
+  inBudget: 800000,
+  outBudget: 48000,
+  inCost: () => 500,
+  outPerItem: 220,
+  maxItems: 40,
+});
+assert.deepStrictEqual(
+  Array.from(balanced90.map(b => b.length)),
+  [30, 30, 30]
+);
+
 // Also verify readExistingUrls picks up recent URLs from Archived Articles even when Articles is empty
 const existingUrlsAfterArchive = sandbox.readExistingUrls(artSheet, archSheet, colMap);
 assert.ok(existingUrlsAfterArchive.has('https://cna.sg/1'));
 assert.ok(existingUrlsAfterArchive.has('https://st.sg/2'));
+
+// 9. Verify pruneArchivedArticles deletes rows older than 7 days and keeps rows <= 7 days old
+const nowRef = new Date('2026-11-10T08:00:00+08:00');
+const nineDaysAgo = new Date('2026-11-01T07:00:00+08:00'); // > 7 days before Nov 10 -> prune
+const threeDaysAgo = new Date('2026-11-07T09:00:00+08:00'); // < 7 days before Nov 10 -> keep
+archSheet.getRange(2, 1, 2, 13).setValues([
+  [nineDaysAgo, 'CNA', 'Sun, 01 Nov 2026', 'Expired 9d Old', 'https://cna.sg/old', 'Body 1', 'Sum 1', 9, 'AI', 'Match', 'AI Tag', 'Tag Sum', 'YES'],
+  [threeDaysAgo, 'Straits Times', 'Sat, 07 Nov 2026', 'Fresh 3d Old', 'https://st.sg/fresh', 'Body 2', 'Sum 2', 8, 'Economy', 'Match', 'Eco Tag', 'Eco Sum', 'YES'],
+]);
+const prunedArchCount = sandbox.pruneArchivedArticles(archSheet, colMap, 7, nowRef);
+assert.strictEqual(prunedArchCount, 1);
+assert.strictEqual(archSheet.getLastRow(), 2); // Header + 1 kept row
+assert.strictEqual(archSheet.getRange(2, colMap['Title'] + 1).getValues()[0][0], 'Fresh 3d Old');
 
 console.log('ALL SELF-CHECKS PASSED');

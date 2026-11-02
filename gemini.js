@@ -162,28 +162,46 @@ function estimateTokens(text) {
 }
 
 /**
- * Greedy token-budget packer: adds items to the current batch while input token budget,
- * output token budget, and optional `maxItems` cap all hold. Always allows >= 1 item per batch.
+ * Balanced token- & count-budget batch packer:
+ * 1) Determines the minimum number of runs `numBatches` needed so no batch exceeds
+ *    `maxItems` (`SUMMARY_MAX_ARTICLES_PER_BATCH`), `inBudget`, or `outBudget`.
+ * 2) Divides `items` evenly across `numBatches` runs (e.g. 50 items with maxItems=40 -> 2 equal runs of 25;
+ *    90 items with maxItems=40 -> 3 equal runs of 30) while enforcing per-batch token ceilings.
  */
 function packBatches(items, opts) {
+  if (!items || items.length === 0) return [];
   const { basePromptTokens, inBudget, outBudget, inCost, outPerItem, maxItems } = opts;
+  const n = items.length;
+  const costs = items.map(it => inCost(it));
+  const totalItemIn = costs.reduce((acc, c) => acc + c, 0);
+
+  const availInPerBatch = Math.max(1, inBudget - basePromptTokens);
+  const batchesByCount = maxItems && maxItems > 0 ? Math.ceil(n / maxItems) : 1;
+  const batchesByIn = Math.ceil(totalItemIn / availInPerBatch);
+  const batchesByOut = outBudget && outPerItem ? Math.ceil((n * outPerItem) / outBudget) : 1;
+
+  const numBatches = Math.max(1, batchesByCount, batchesByIn, batchesByOut);
+
   const batches = [];
   let cur = [];
   let inSum = basePromptTokens;
   let outSum = 0;
+  let batchesLeft = numBatches;
+  let targetSize = Math.ceil(n / batchesLeft);
 
-  for (const it of items) {
-    const c = inCost(it);
+  for (let i = 0; i < n; i++) {
+    const it = items[i];
+    const c = costs[i];
     if (
       cur.length > 0 &&
-      (inSum + c > inBudget ||
-        outSum + outPerItem > outBudget ||
-        (maxItems && cur.length >= maxItems))
+      (cur.length >= targetSize || inSum + c > inBudget || outSum + outPerItem > outBudget)
     ) {
       batches.push(cur);
       cur = [];
       inSum = basePromptTokens;
       outSum = 0;
+      batchesLeft = Math.max(1, numBatches - batches.length);
+      targetSize = Math.ceil((n - i) / batchesLeft);
     }
     cur.push(it);
     inSum += c;
